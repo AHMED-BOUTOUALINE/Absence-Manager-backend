@@ -516,7 +516,7 @@ class ClassesSeeder extends Seeder
             ],
             [
                 'id' => 71,
-                'code_diplome' => 'EIT202',
+                'code_diplome' => 'EIT203',
                 'libelle_long' => 'GE_EIT_Q_2A-Électricité d`Installation (2A)-2025',
                 'filiere_id' => 4,
                 'niveau_id' => 2,
@@ -552,7 +552,7 @@ class ClassesSeeder extends Seeder
             ],
             [
                 'id' => 39,
-                'code_diplome' => 'TDB202',
+                'code_diplome' => 'TDB203',
                 'libelle_long' => 'BTP_TDB_T_2A-Technicien Dessinateur de Bâtiment (2A)-2025',
                 'filiere_id' => 6,
                 'niveau_id' => 3,
@@ -564,7 +564,7 @@ class ClassesSeeder extends Seeder
             ],
             [
                 'id' => 40,
-                'code_diplome' => 'GEOCM202',
+                'code_diplome' => 'GEOCM203',
                 'libelle_long' => 'GC_GEOCM_TS_2A-Gestion des Entreprises option Commerce et Marketing (2A)-2025',
                 'filiere_id' => 12,
                 'niveau_id' => 4,
@@ -576,7 +576,7 @@ class ClassesSeeder extends Seeder
             ],
             [
                 'id' => 41,
-                'code_diplome' => 'GEOCF202',
+                'code_diplome' => 'GEOCF203',
                 'libelle_long' => 'GC_GEOCF_TS_2A-Gestion des Entreprises option Comptabilité et Finance (2A)-2025',
                 'filiere_id' => 14,
                 'niveau_id' => 4,
