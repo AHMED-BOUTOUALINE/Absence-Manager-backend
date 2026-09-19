@@ -3,7 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Attendance;
+use App\Models\Inscription;
+use App\Models\Programme;
 use App\Models\Stagiaire;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 
 class StagiaireController extends Controller
@@ -161,17 +165,7 @@ class StagiaireController extends Controller
 
     public function upsertFromExcel(Request $request)
     {
-        $validated = $request->validate([
-            'stagiaires'                   => 'required|array',
-            'stagiaires.*.matricule'       => 'required|numeric',
-            'stagiaires.*.nom'             => 'required|string',
-            'stagiaires.*.prenom'          => 'required|string',
-            'stagiaires.*.sexe'            => 'nullable|string',
-            'stagiaires.*.date_naissance'  => 'nullable|date',
-            'stagiaires.*.lieu_naissance'  => 'nullable|string',
-            'stagiaires.*.cin'             => 'nullable|string',
-            'stagiaires.*.telephone'       => 'nullable|string',
-        ]);
+        $validated = $this->validateExcelRows($request);
 
         $created = 0;
         $updated = 0;
@@ -179,9 +173,34 @@ class StagiaireController extends Controller
 
         foreach ($validated['stagiaires'] as $data) {
             try {
+                $programme = Programme::where('code_diplome', trim($data['code_diplome']))->first();
+                if (!$programme) {
+                    throw new \RuntimeException("Classe '{$data['code_diplome']}' introuvable");
+                }
+
+                $inscriptionData = [
+                    'stagiaire_id'         => null,
+                    'classe_id'            => $programme->id,
+                    'date_inscription'     => $data['date_inscription'] ?? null,
+                    'date_dossier_complet' => $data['date_dossier_complet'] ?? null,
+                ];
+
+                unset(
+                    $data['code_diplome'],
+                    $data['date_inscription'],
+                    $data['date_dossier_complet']
+                );
                 $stagiaire = Stagiaire::updateOrCreate(
                     ['matricule' => $data['matricule']],
                     $data
+                );
+                $inscriptionData['stagiaire_id'] = $stagiaire->id;
+                Inscription::updateOrCreate(
+                    [
+                        'stagiaire_id' => $stagiaire->id,
+                        'classe_id' => $programme->id,
+                    ],
+                    $inscriptionData
                 );
                 $stagiaire->wasRecentlyCreated ? $created++ : $updated++;
             } catch (\Exception) {
@@ -193,6 +212,37 @@ class StagiaireController extends Controller
             'success' => true,
             'message' => "Upsert complété: $created créés, $updated mis à jour, $errors erreurs",
             'data'    => ['created' => $created, 'updated' => $updated, 'errors' => $errors],
+        ]);
+    }
+
+    public function replaceFromExcel(Request $request)
+    {
+        $this->validateExcelRows($request);
+
+        DB::transaction(function () {
+            Attendance::query()->delete();
+            Inscription::query()->delete();
+            Stagiaire::query()->delete();
+        });
+
+        return $this->upsertFromExcel($request);
+    }
+
+    private function validateExcelRows(Request $request): array
+    {
+        return $request->validate([
+            'stagiaires'                   => 'required|array',
+            'stagiaires.*.matricule'       => 'required|numeric',
+            'stagiaires.*.nom'             => 'required|string',
+            'stagiaires.*.prenom'          => 'required|string',
+            'stagiaires.*.sexe'            => 'nullable|string',
+            'stagiaires.*.date_naissance'  => 'nullable|date',
+            'stagiaires.*.lieu_naissance'  => 'nullable|string',
+            'stagiaires.*.cin'             => 'nullable|string',
+            'stagiaires.*.telephone'       => 'nullable|string',
+            'stagiaires.*.code_diplome'    => 'required|string',
+            'stagiaires.*.date_inscription' => 'nullable|date',
+            'stagiaires.*.date_dossier_complet' => 'nullable|date',
         ]);
     }
 }

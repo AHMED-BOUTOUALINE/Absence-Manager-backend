@@ -15,6 +15,11 @@ class DatabaseSeeder extends Seeder
             TypeAbsenceSeeder::class,
             TimeBlockSeeder::class,
             AdminUserSeeder::class,
+            SecteursSeeder::class,
+            NiveauFormationsSeeder::class,
+            FilieresSeeder::class,
+            ClassesSeeder::class,
+
         ]);
     }
 }
