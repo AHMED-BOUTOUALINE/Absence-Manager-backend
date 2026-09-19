@@ -78,9 +78,13 @@ class AttendanceController extends Controller
             'recorded_by' => 'nullable|string',
         ]);
 
-        $this->applyStatus($validated);
+        if (array_key_exists('status', $validated) && $validated['status'] !== null) {
+            $validated['type_absence_id'] = $this->typeIdForStatus($validated['status']);
+        }
+        unset($validated['status']);
 
         $attendance->update($validated);
+        $attendance->refresh();
         $this->loadAttendance($attendance);
 
         return response()->json([
@@ -163,6 +167,12 @@ class AttendanceController extends Controller
             return;
         }
 
+        $data['type_absence_id'] = $this->typeIdForStatus($data['status']);
+        unset($data['status']);
+    }
+
+    private function typeIdForStatus(string $status): int
+    {
         $types = [
             'non_justifie' => ['ABSENT', 'Absent non justifié'],
             'justifie' => ['EXCUSED', 'Absence justifiée'],
@@ -170,10 +180,10 @@ class AttendanceController extends Controller
             'absence_excusee' => ['PERMIT', 'Absence autorisée'],
         ];
 
-        [$code, $label] = $types[$data['status']];
+        [$code, $label] = $types[$status];
         $type = TypeAbsence::firstOrCreate(['code' => $code], ['libelle' => $label]);
-        $data['type_absence_id'] = $type->id;
-        unset($data['status']);
+
+        return $type->id;
     }
 
     private function loadAttendance(Attendance $attendance): void
