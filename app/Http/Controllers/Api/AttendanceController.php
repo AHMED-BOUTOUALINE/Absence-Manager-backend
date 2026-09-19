@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
+use App\Models\TypeAbsence;
 use Illuminate\Http\Request;
 
 class AttendanceController extends Controller
@@ -31,13 +32,17 @@ class AttendanceController extends Controller
             'session_id' => 'required|exists:seances,id',
             'stagiaire_id' => 'required|exists:stagiaires,id',
             'type_absence_id' => 'required|exists:type_absences,id',
+            'status' => 'nullable|in:non_justifie,justifie,retard,absence_excusee',
             'justification' => 'nullable|string',
             'recorded_by' => 'nullable|string',
         ]);
 
+        $this->applyStatus($validated);
+
         $validated['recorded_at'] = now();
 
         $attendance = Attendance::create($validated);
+        $this->loadAttendance($attendance);
 
         return response()->json([
             'success' => true,
@@ -51,7 +56,7 @@ class AttendanceController extends Controller
      */
     public function show(Attendance $attendance)
     {
-        $attendance->load(['session', 'stagiaire', 'typeAbsence']);
+        $this->loadAttendance($attendance);
 
         return response()->json([
             'success' => true,
@@ -65,14 +70,18 @@ class AttendanceController extends Controller
     public function update(Request $request, Attendance $attendance)
     {
         $validated = $request->validate([
-            'session_id' => 'sometimes|exists:sessions,id',
+            'session_id' => 'sometimes|exists:seances,id',
             'stagiaire_id' => 'sometimes|exists:stagiaires,id',
             'type_absence_id' => 'sometimes|exists:type_absences,id',
+            'status' => 'nullable|in:non_justifie,justifie,retard,absence_excusee',
             'justification' => 'nullable|string',
             'recorded_by' => 'nullable|string',
         ]);
 
+        $this->applyStatus($validated);
+
         $attendance->update($validated);
+        $this->loadAttendance($attendance);
 
         return response()->json([
             'success' => true,
@@ -125,6 +134,7 @@ class AttendanceController extends Controller
                         'recorded_at' => now(),
                     ]
                 );
+                $this->loadAttendance($attendance);
                 $created[] = $attendance;
             } catch (\Exception $e) {
                 $errors[] = [
@@ -144,6 +154,43 @@ class AttendanceController extends Controller
                 'attendances' => $created,
             ],
         ], count($errors) > 0 ? 207 : 201);
+    }
+
+    private function applyStatus(array &$data): void
+    {
+        if (!array_key_exists('status', $data) || $data['status'] === null) {
+            unset($data['status']);
+            return;
+        }
+
+        $types = [
+            'non_justifie' => ['ABSENT', 'Absent non justifié'],
+            'justifie' => ['EXCUSED', 'Absence justifiée'],
+            'retard' => ['LATE', 'Retard'],
+            'absence_excusee' => ['PERMIT', 'Absence autorisée'],
+        ];
+
+        [$code, $label] = $types[$data['status']];
+        $type = TypeAbsence::firstOrCreate(['code' => $code], ['libelle' => $label]);
+        $data['type_absence_id'] = $type->id;
+        unset($data['status']);
+    }
+
+    private function loadAttendance(Attendance $attendance): void
+    {
+        $attendance->load(['session', 'stagiaire', 'typeAbsence']);
+
+        $statusByType = [
+            'ABSENT' => 'non_justifie',
+            'EXCUSED' => 'justifie',
+            'LATE' => 'retard',
+            'PERMIT' => 'absence_excusee',
+        ];
+
+        $attendance->setAttribute(
+            'status',
+            $statusByType[$attendance->typeAbsence?->code] ?? 'non_justifie'
+        );
     }
 
     /**
